@@ -4,4 +4,6 @@ __pycache__/
 .vscode/
 data/
 *.csv
-!rjh/calibration/*.csv
+!instruments/**/calibration/*.csv
+!controller/**/*.csv
+instruments/instruments.local.yaml

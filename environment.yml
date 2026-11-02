@@ -1,10 +1,34 @@
 name: RJH
 channels:
-  - defaults
+  - conda-forge
 dependencies:
   - python=3.11
-  - matplotlib
-  - pandas
+
+  # core numerics / data
   - numpy
-  - pyserial
-  - scipy
+  - scipy            # Savitzky-Golay, signal processing, fitting
+  - pandas
+  - matplotlib
+
+  # instruments
+  - pyserial         # CT3, BK 1900B, Fluke E1RH (serial)
+  - pyyaml           # instruments.yaml config
+  - bleak            # Fluke 374 FC over Bluetooth LE
+  - opencv           # Fluke E1RH video
+
+  # GUI
+  - pyqt             # window / widgets
+  - pyqtgraph        # fast live plots
+
+  # control
+  - control          # python-control: transfer functions, PID, state space
+  - casadi           # optimization backend for do-mpc
+  - filterpy         # Kalman / observer filters
+
+  # dev tools
+  - ipykernel        # Jupyter notebooks in VS Code
+  - pytest
+
+  - pip
+  - pip:
+      - do-mpc       # MPC (thesis Level 3)

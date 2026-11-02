@@ -1,0 +1,38 @@
+# Settings for every instrument. Set enabled: true to include it in the manager.
+#
+# Ports are found automatically:  python -m instruments.connect
+# Detected ports are saved per computer in instruments.local.yaml (not in git),
+# so the laptop and the lab desktop can each have different COM numbers.
+#
+# match: how to recognize the instrument's USB adapter in Device Manager
+#   description: text that appears in the port's name
+#   vid_pid:     USB vendor:product ID (hex), e.g. "0403:6001"
+# If nothing matches, drivers that support it are probed (a short query is
+# sent to each unclaimed port).
+
+ct3:
+  enabled: true
+  baudrate: 115200      # confirmed with instruments.ct3.diagnose
+  # min_period_ms: 10    # optional: force a slower minimum sample period
+  match:
+    description: ["Infrared Online Sensor Adapter"]
+    vid_pid: ["10c4:834b"]   # Silicon Labs chip in the Micro-Epsilon USB adapter
+
+fluke_e1rh:
+  enabled: false
+  mode: tcp           # tcp (Ethernet/PoE) or serial
+  host: 192.168.0.10
+  tcp_port: 502
+  baudrate: 9600      # used when mode: serial
+  match:
+    description: []
+
+bk1900b:
+  enabled: false
+  baudrate: 9600
+  match:
+    description: []
+
+fluke_374fc:
+  enabled: false
+  ble_address: ""     # filled in once the clamp is discovered
