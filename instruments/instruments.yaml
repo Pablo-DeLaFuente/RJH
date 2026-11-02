@@ -10,6 +10,18 @@
 # If nothing matches, drivers that support it are probed (a short query is
 # sent to each unclaimed port).
 
+# ---- run setup ---------------------------------------------------------------
+# power_source picks which current source is logged:
+#   bk1900b -> BK 1900B on (its own V/I readback), clamp off
+#   welder  -> Fluke 374 FC clamp on, BK off. Power is computed as P = I^2 * R_total,
+#              so R_total_ohm is required (measure it before the run:
+#              python -m instruments.fluke_374fc.clamp_ble --measure-R).
+#              Can also be given per run: python -m instruments.manager --R 1.8
+#   none    -> don't touch; use each instrument's enabled: flag below
+run:
+  power_source: none
+  R_total_ohm: null     # total circuit resistance for welder runs [ohm]
+
 ct3:
   enabled: true
   baudrate: 115200      # confirmed with instruments.ct3.diagnose
@@ -35,4 +47,6 @@ bk1900b:
 
 fluke_374fc:
   enabled: false
-  ble_address: ""     # filled in once the clamp is discovered
+  ble_address: "14:9C:EF:CA:4D:39"   # FLUKE 374FC, fw V0.3.9; from: python -m instruments.fluke_374fc.discover (blank = scan each start)
+  name_hint: "374"      # BLE name to look for when scanning
+  connect_timeout: 45   # s to wait for the first reading on connect()

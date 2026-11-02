@@ -13,7 +13,6 @@ dependencies:
   # instruments
   - pyserial         # CT3, BK 1900B, Fluke E1RH (serial)
   - pyyaml           # instruments.yaml config
-  - bleak            # Fluke 374 FC over Bluetooth LE
   - opencv           # Fluke E1RH video
 
   # GUI
@@ -32,3 +31,4 @@ dependencies:
   - pip
   - pip:
       - do-mpc       # MPC (thesis Level 3)
+      - bleak        # Fluke 374 FC over BLE (pip, not conda: conda-forge skips the Windows winrt-* backend)

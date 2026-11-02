@@ -79,7 +79,8 @@ def detect(base=None, local=None, probe=True, only_enabled=True, verbose=True) -
         found[name] = {"port": p.device, "serial_number": p.serial_number or "",
                        "description": p.description, "method": method}
 
-    names = [n for n, s in base.items() if s.get("enabled") or not only_enabled]
+    names = [n for n, s in base.items()
+             if n in registry and isinstance(s, dict) and (s.get("enabled") or not only_enabled)]
     serial_names = []
     for name in names:
         cfg = base[name]

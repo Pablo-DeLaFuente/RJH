@@ -7,6 +7,12 @@ so the same code works on any computer.
     python -m instruments.manager --csv data/run1.csv
     python -m instruments.manager --rate 100               # fixed 100 Hz instead
     python -m instruments.manager --rate 0                 # no pacing, as fast as possible
+    python -m instruments.manager --R 1.8                  # welder run: R_total = 1.8 ohm
+
+Power source (run: section of instruments.yaml):
+  bk1900b -> BK 1900B logs its own V/I; clamp off
+  welder  -> 374 FC clamp logs I; adds P_W = I^2 * R_total and V_est_V = I * R_total.
+             R_total comes from --R, else run.R_total_ohm, else you're asked for it.
 
 Sampling rate (auto mode): on start-up each instrument is timed over a few
 dozen reads. The sample period is set by the SLOWEST instrument (plus a 10%
@@ -36,9 +42,36 @@ REGISTRY = {
 }
 
 
+POWER_SOURCES = {
+    # power_source: (instrument turned on, instrument turned off)
+    "bk1900b": ("bk1900b", "fluke_374fc"),
+    "welder": ("fluke_374fc", "bk1900b"),
+}
+
+
+def run_settings(base: dict = None) -> dict:
+    base = base if base is not None else connect.load_yaml(connect.BASE_CONFIG)
+    run = dict(base.get("run") or {})
+    run["power_source"] = str(run.get("power_source") or "none").lower()
+    if run["power_source"] not in (*POWER_SOURCES, "none"):
+        raise ValueError(f"run.power_source must be one of {[*POWER_SOURCES, 'none']}, "
+                         f"got {run['power_source']!r}")
+    return run
+
+
+def apply_power_source(base: dict) -> dict:
+    """Turn the right current instrument on/off according to run.power_source."""
+    src = run_settings(base)["power_source"]
+    if src in POWER_SOURCES:
+        on, off = POWER_SOURCES[src]
+        base.setdefault(on, {})["enabled"] = True
+        base.setdefault(off, {})["enabled"] = False
+    return base
+
+
 def load_config(autodetect=True) -> dict:
     """instruments.yaml + this computer's detected ports."""
-    base = connect.load_yaml(connect.BASE_CONFIG)
+    base = apply_power_source(connect.load_yaml(connect.BASE_CONFIG))
     if autodetect:
         found = connect.detect(base=base, verbose=False)
         connect.save_local(found)
@@ -55,9 +88,20 @@ def load_config(autodetect=True) -> dict:
 
 
 class InstrumentManager:
-    def __init__(self, autodetect=True):
+    def __init__(self, autodetect=True, R_total_ohm=None):
         cfg = load_config(autodetect)
-        enabled = {n: sec for n, sec in cfg.items() if sec.get("enabled")}
+        run = run_settings(cfg)
+        self.power_source = run["power_source"]
+        self.R_total_ohm = None
+        if self.power_source == "welder":
+            R = R_total_ohm if R_total_ohm is not None else run.get("R_total_ohm")
+            if R is None or float(R) <= 0:
+                raise ValueError("welder run needs R_total_ohm > 0 "
+                                 "(--R, or run.R_total_ohm in instruments.yaml)")
+            self.R_total_ohm = float(R)
+            print(f"power source: welder, R_total = {self.R_total_ohm:g} ohm")
+        enabled = {n: sec for n, sec in cfg.items()
+                   if n in REGISTRY and isinstance(sec, dict) and sec.get("enabled")}
         self.instruments = {n: REGISTRY[n].from_config(sec) for n, sec in enabled.items()}
         self.min_period_s = {n: sec.get("min_period_ms", 0) / 1000 for n, sec in enabled.items()}
         self._pool = ThreadPoolExecutor(max_workers=max(1, len(self.instruments)))
@@ -79,11 +123,20 @@ class InstrumentManager:
         """Read every instrument at the same moment (in parallel) and merge."""
         if len(self.instruments) == 1:
             (name, inst), = self.instruments.items()
-            return self._safe_read(name, inst)
+            return self.add_derived(self._safe_read(name, inst))
         futures = [self._pool.submit(self._safe_read, n, i) for n, i in self.instruments.items()]
         row = {}
         for fut in futures:
             row.update(fut.result())
+        return self.add_derived(row)
+
+    def add_derived(self, row: dict) -> dict:
+        """Computed columns. Welder: P = I^2 R and V = I R from the clamp current."""
+        if self.R_total_ohm is not None:
+            I = row.get("I_clamp_A", math.nan)
+            row["R_total_ohm"] = self.R_total_ohm
+            row["V_est_V"] = I * self.R_total_ohm
+            row["P_W"] = I * I * self.R_total_ohm
         return row
 
     def measure_periods(self, n_reads=30) -> dict:
@@ -131,7 +184,19 @@ class InstrumentManager:
         self.close_all()
 
 
-def run(rate_hz=None, csv_path=None, print_hz=10.0):
+def ask_R_total() -> float:
+    while True:
+        txt = input("Welder run - total circuit resistance R_total [ohm]: ").strip()
+        try:
+            R = float(txt)
+            if R > 0:
+                return R
+        except ValueError:
+            pass
+        print("  enter a positive number, e.g. 1.8")
+
+
+def run(rate_hz=None, csv_path=None, print_hz=10.0, R_total_ohm=None):
     """Sample all instruments.
 
     rate_hz=None -> auto: period set by the slowest instrument
@@ -143,7 +208,11 @@ def run(rate_hz=None, csv_path=None, print_hz=10.0):
     """
     f = writer = None
     n = 0
-    with InstrumentManager() as mgr:
+    run_cfg = run_settings()
+    if (run_cfg["power_source"] == "welder" and R_total_ohm is None
+            and run_cfg.get("R_total_ohm") is None):
+        R_total_ohm = ask_R_total()
+    with InstrumentManager(R_total_ohm=R_total_ohm) as mgr:
         if rate_hz is None:
             period = mgr.auto_period()
         else:
@@ -191,5 +260,7 @@ if __name__ == "__main__":
                     help="samples per second (default: auto, matched to the slowest "
                          "instrument; 0 = as fast as possible)")
     ap.add_argument("--csv", help="save every sample to this CSV, e.g. data/run1.csv")
+    ap.add_argument("--R", type=float, default=None,
+                    help="welder runs: total circuit resistance [ohm] (overrides instruments.yaml)")
     a = ap.parse_args()
-    run(a.rate, a.csv)
+    run(a.rate, a.csv, R_total_ohm=a.R)
