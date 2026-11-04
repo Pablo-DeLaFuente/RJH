@@ -18,7 +18,7 @@ Run everything from the repo root, e.g.
   - `common/` — shared `Instrument` base class and helpers
   - `ct3/` — Micro-Epsilon CT3 pyrometer (serial) — **working**
   - `fluke_e1rh/` — Fluke Endurance E1RH: temperature, video, acquisition, TCP proxy — *stub*
-  - `bk1900b/` — BK Precision 1900B DC supply — *stub*
+  - `bk1900b/` — BK Precision 1900B DC supply (USB serial, ASCII) — *written, run `--check` on hardware*
   - `fluke_374fc/` — Fluke 374 FC clamp meter (Bluetooth LE) — *stub*
 - `controller/` — control code (Python and MATLAB): feedforward, observer, MPC
 - `gui/` — front end (live video, readouts, graphs, CSV export)

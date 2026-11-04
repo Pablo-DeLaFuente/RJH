@@ -41,9 +41,11 @@ fluke_e1rh:
 
 bk1900b:
   enabled: false
-  baudrate: 9600
+  baudrate: 9600        # confirmed with: python -m instruments.bk1900b.bk1900b --check
+  # max ratings (GMAX): 16.2 V, 63.0 A
   match:
     description: []
+    vid_pid: ["10c4:ea60"]   # Silicon Labs CP210x inside the 1900B (CT3 adapter is 10c4:834b)
 
 fluke_374fc:
   enabled: false
