@@ -19,6 +19,7 @@ Ends with output OFF and your original setpoints restored (also on Ctrl+C/error)
 import argparse
 import csv
 import time
+from pathlib import Path
 
 from instruments.bk1900b.bk1900b import BK1900B
 
@@ -94,6 +95,8 @@ def main(port, baud, v_start, v_step, tol, csv_path):
     for r in fails:
         print(f"  FAIL {r['part']} target {r['target']} -> {r['measured']}")
     if csv_path:
+        csv_path = Path(csv_path).resolve()
+        csv_path.parent.mkdir(parents=True, exist_ok=True)  # make data/ if missing
         with open(csv_path, "w", newline="") as f:
             w = csv.DictWriter(f, ["part", "target", "measured", "time_s", "pass"])
             w.writeheader()

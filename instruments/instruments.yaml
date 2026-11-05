@@ -33,7 +33,7 @@ ct3:
 fluke_e1rh:
   enabled: false
   mode: tcp           # tcp (Ethernet/PoE) or serial (RS485 adapter)
-  host: 192.168.0.10  # PLACEHOLDER - set to the sensor's real IP (Interface menu / DataTemp)
+  host: 192.168.42.132  # from DataTemp log; model E1RH-F2-V-0-0 (V = video). Laptop needs a 192.168.42.x address
   tcp_port: 6363      # manual: default ASCII TCP port 6363 (UDP 36363 fixed, web/video port 80)
   baudrate: 38400     # manual: RS485 default 38400 8N1 (used when mode: serial)
   address: null       # multidrop address 1-32 if multidrop is on, else null

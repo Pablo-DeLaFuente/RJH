@@ -38,31 +38,52 @@ def find_stream(host, timeout=2.0):
     return None
 
 
-def show(url, save=None):
-    cap = cv2.VideoCapture(url)
-    if not cap.isOpened():
-        raise SystemExit(f"Could not open {url}")
+def show(url, save=None, max_retries=20):
+    """Show (and optionally record) the stream. The E1RH closes the stream every
+    so often ("Stream ends prematurely"), so on a drop we reconnect and carry on;
+    give up only after max_retries drops in a row with no frames in between."""
     writer = None
-    n, t0 = 0, time.perf_counter()
+    n, drops, fails_in_a_row = 0, 0, 0
+    t0 = time.perf_counter()
     print("q in the video window to quit.")
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            print("stream ended / dropped")
+    quit_ = False
+    while not quit_:
+        cap = cv2.VideoCapture(url)
+        if not cap.isOpened():
+            fails_in_a_row += 1
+            if fails_in_a_row > max_retries:
+                print(f"Could not open {url} after {max_retries} tries")
+                break
+            time.sleep(0.5)
+            continue
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                drops += 1
+                fails_in_a_row += 1
+                print(f"stream dropped after {n} frames total -> reconnecting "
+                      f"({drops} drops so far)")
+                break
+            fails_in_a_row = 0
+            n += 1
+            if save and writer is None:
+                h, w = frame.shape[:2]
+                writer = cv2.VideoWriter(save, cv2.VideoWriter_fourcc(*"MJPG"), 30, (w, h))
+            if writer:
+                writer.write(frame)
+            fps = n / (time.perf_counter() - t0)
+            cv2.putText(frame, f"{fps:4.1f} fps  drops {drops}", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.imshow("E1RH", frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                quit_ = True
+                break
+        cap.release()
+        if fails_in_a_row > max_retries:
+            print("Too many drops in a row, stopping.")
             break
-        n += 1
-        if save and writer is None:
-            h, w = frame.shape[:2]
-            writer = cv2.VideoWriter(save, cv2.VideoWriter_fourcc(*"MJPG"), 30, (w, h))
-        if writer:
-            writer.write(frame)
-        fps = n / (time.perf_counter() - t0)
-        cv2.putText(frame, f"{fps:4.1f} fps", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                    (0, 255, 0), 2)
-        cv2.imshow("E1RH", frame)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-    cap.release()
+    t = time.perf_counter() - t0
+    print(f"{n} frames in {t:.1f} s ({n / t if t else 0:.1f} fps), {drops} drops")
     if writer:
         writer.release()
         print(f"Saved {save}")

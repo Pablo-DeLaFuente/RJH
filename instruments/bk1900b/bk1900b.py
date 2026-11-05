@@ -1,5 +1,5 @@
 """
-BK Precision 1900B DC supply (1-16 V, 0-60 A) driver + quick logger.
+BK Precision 1900B DC supply (1-16.2 V, 0-63 A) driver + quick logger.
 
 Protocol (ASCII, from the BK 1900B-series programming manual):
   USB virtual COM, 9600 baud, 8N1, no flow control.
@@ -8,7 +8,7 @@ Protocol (ASCII, from the BK 1900B-series programming manual):
 
     GETD          -> VVVVIIIIS   live display: V (2 dp), I (2 dp), S = 0 CV / 1 CC
     GETS          -> VVVIII      setpoints:    V (1 dp), I (1 dp)
-    GMAX          -> VVVIII      max ratings,  e.g. 160600 = 16.0 V, 60.0 A
+    GMAX          -> VVVIII      max ratings,  e.g. 162630 = 16.2 V, 63.0 A (our unit)
     GOVP / GOCP   -> VVV / III   upper voltage / current limits (1 dp)
     VOLT<vvv>     set voltage    VOLT125 = 12.5 V   (min 1.0 V: VOLT005 gets no reply)
     CURR<iii>     set current    CURR305 = 30.5 A
@@ -195,7 +195,7 @@ def check(port, baud):
             except TimeoutError as e:
                 print(f"{cmd:5s} {e}")
         print()
-        print(f"max ratings : {dev.V_max} V, {dev.I_max} A   (1900B should be 16.0 V, 60.0 A)")
+        print(f"max ratings : {dev.V_max} V, {dev.I_max} A   (our 1900B: 16.2 V, 63.0 A)")
         Vs, Is = dev.setpoints()
         print(f"setpoints   : {Vs} V, {Is} A")
         V, I, m = dev.display()
